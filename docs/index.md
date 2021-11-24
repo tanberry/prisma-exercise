@@ -136,7 +136,7 @@ Results in the following output:
 This is because the cursor is set to start where `id` equals 2. If you wanted to then limit how many results are returned, you can include a limit, using the `take` argument:
 ```js
 query Feed($cursor: Int) {
-  feed(take: 1cursor: 2) {
+  feed(take: 1, cursor: 2) {
     id
     title
   }
