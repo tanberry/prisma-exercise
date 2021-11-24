@@ -31,41 +31,132 @@ Both approaches to pagination have benefits and drawbacks: notably, limit/offset
 
 ## Setting up your sample project
 
-## Set up Prisma
-1. Install the tools we plan to use in this project:
-    ```sh
-    mkdir graphql-cursors
-    cd graphql-cursors
-    npm init --yes
-    npm install apollo-server nexus graphql prisma nexus-prisma
-    ```
+Prisma provides a sample project that can be used to get started with this tutorial. This can be downloaded by cloning this repo:
+```
+git clone https://github.com/Nadreck/prisma-exercise.git
+```
+Once the repository has been cloned, run:
+```
+cd prisma-exercise
+npm install
+npx prisma migrate dev --name init 
+npx prisma db seed 
+```
+This will create an sqlite database named `dev.db`, and seed it with some sample users and posts for us to query.
 
-2. Set up Prisma:
-    ```sh
-    npx prisma init
-    ```
-
-3. Create your sqlite database:
-    ```sql
-    sqlite3 sample.db;
-    ```
-
-4. Open `prisma/schema.prisma` and update the datasource to talk to your sample database:
-    ```js
-    datasource db {
-      provider = "sqlite"
-      url      = "file:./sample.db"
-    }
-    ```
-5. Update `prisma/schema.prisma` to include a sample data model:
-    ```
-    ```
-6. Load some sample data into the database:
-    ```
-    ```
-
-### Set up Nexus
-
-### Set up Apollo
+When ready, run:
+```
+npm run dev
+```
+Then navigate to `http://localhost:4000` to proceed.
 
 ## Querying data with pagination
+
+The sample project is configured to support both limit/offset and cursor-based queries when using the `feed` query. In the case of cursor-based pagination, the feed is configured to use the `id` field as the basis for our cursor (taken from `src/schema.js`):
+```js
+t.nonNull.list.nonNull.field('feed', {
+  type: 'Post',
+  args: {
+    searchString: stringArg(),
+    skip: intArg(),
+    take: intArg(),
+    orderBy: arg({
+      type: 'PostOrderByUpdatedAtInput',
+    }),
+    cursor: intArg(),
+  },
+  resolve: (_parent, args, context) => {
+    const or = args.searchString
+      ? {
+          OR: [
+            { title: { contains: args.searchString } },
+            { content: { contains: args.searchString } },
+          ],
+        }
+      : {}
+
+    if (args.cursor) {
+      const searchResults = context.prisma.post.findMany({
+        cursor: {
+          id: args.cursor || undefined,
+        },
+        take: args.take || undefined,
+        orderBy: args.orderBy || undefined,
+      })
+      return searchResults
+    } else {
+      const searchResults = context.prisma.post.findMany({
+        where: {
+          published: true,
+          ...or,
+        },
+        take: args.take || undefined,
+        skip: args.skip || undefined,
+        orderBy: args.orderBy || undefined,
+      })
+      return searchResults
+    }
+    
+  },
+})
+```
+
+To use cursor-based pagination, for example, the following query:
+```js
+query Feed($cursor: Int) {
+  feed(cursor: 2) {
+    id
+    title
+  }
+}
+```
+
+Results in the following output:
+```json
+{
+  "data": {
+    "feed": [
+      {
+        "id": 2,
+        "title": "Follow Prisma on Twitter"
+      },
+      {
+        "id": 3,
+        "title": "Ask a question about Prisma on GitHub"
+      },
+      {
+        "id": 4,
+        "title": "Prisma on YouTube"
+      }
+    ]
+  }
+}
+```
+
+This is because the cursor is set to start where `id` equals 2. If you wanted to then limit how many results are returned, you can include a limit, using the `take` argument:
+```
+query Feed($cursor: Int) {
+  feed(take: 1cursor: 2) {
+    id
+    title
+  }
+}
+```
+
+This would result in returning just one entry:
+```json
+{
+  "data": {
+    "feed": [
+      {
+        "id": 2,
+        "title": "Follow Prisma on Twitter"
+      }
+    ]
+  }
+}
+```
+
+## Conclusion
+
+Cursor-based pagination can be a powerful tool for working with large data sets. For more examples of pagination in practice, check the [Prisma.io Client API](https://www.prisma.io/client) reference.
