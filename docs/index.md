@@ -36,7 +36,7 @@ Prisma provides a sample project that can be used to get started with this tutor
 git clone https://github.com/Nadreck/prisma-exercise.git
 ```
 Once the repository has been cloned, run:
-```
+```sh
 cd prisma-exercise
 npm install
 npx prisma migrate dev --name init 
@@ -134,7 +134,7 @@ Results in the following output:
 ```
 
 This is because the cursor is set to start where `id` equals 2. If you wanted to then limit how many results are returned, you can include a limit, using the `take` argument:
-```
+```js
 query Feed($cursor: Int) {
   feed(take: 1cursor: 2) {
     id
